@@ -82,7 +82,8 @@ class Ledger:
         fact = self.store.fact(fact_id)
         ingestion = self.store.ingestion(fact["ingestion_id"])
         return {"fact": fact, "landing": ingestion,
-                "dimension_versions": fact["dimensions"]}
+                "dimension_versions": fact["dimensions"],
+                "reassignments": self.store.fact_revisions(fact_id)}
 
     def batch_balances(self, batch_id: str):
         facts = self.batch(batch_id)

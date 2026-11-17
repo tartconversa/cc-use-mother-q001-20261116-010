@@ -38,8 +38,28 @@ class Lineage:
         if not rows:
             from .model import LakeError
             raise LakeError("unknown_release_row", "release row not found", 404)
+        frozen_revisions = release["content"].get("dimension_revisions", [])
+        fact_ids = set(rows[0]["fact_ids"])
         return {"release_id": release_id, "fingerprint": release["fingerprint"],
-                "row": rows[0], "frozen_reconciliation": release["content"]["reconciliation"]}
+                "current": release["current"], "superseded_by": release["superseded_by"],
+                "row": rows[0], "frozen_reconciliation": release["content"]["reconciliation"],
+                "frozen_dimension_revisions": [
+                    revision for revision in frozen_revisions
+                    if fact_ids & set(revision["fact_ids"])]}
+
+    def release(self, release_id: int):
+        release = self.releases.get(release_id)
+        content = release["content"]
+        return {"release_id": release_id, "name": release["name"],
+                "month": release["project_month"], "fingerprint": release["fingerprint"],
+                "created_at": release["created_at"], "reason": release["reason"],
+                "supersedes_id": release["supersedes_id"],
+                "current": release["current"], "superseded_by": release["superseded_by"],
+                "fingerprint_unchanged": release["fingerprint"] == self.releases.fingerprint_of(content),
+                "batches": [batch["batch_id"] for batch in content["reconciliation"]["batches"]],
+                "dimension_revisions": content.get("dimension_revisions", []),
+                "rows": [{"street_id": row["street_id"], "material_id": row["material_id"],
+                          "fact_ids": row["fact_ids"]} for row in content["mart"]["rows"]]}
 
     def audit_subject(self, subject: str):
         with self.store.connect() as conn:

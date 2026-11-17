@@ -41,6 +41,20 @@ class LakeService:
     def register_dimension(self, data, expected_version=None):
         return self.dimensions.put(data, expected_version)
 
+    def relocate_community(self, community_id, effective_from, street_id, **kwargs):
+        return self.dimensions.relocate("community", community_id, effective_from,
+                                        parents={"street_id": street_id}, **kwargs)
+
+    def relocate_device(self, device_id, effective_from, community_id, **kwargs):
+        return self.dimensions.relocate("device", device_id, effective_from,
+                                        parents={"community_id": community_id}, **kwargs)
+
+    def retract_dimension(self, kind, external_id, **kwargs):
+        return self.dimensions.retract(kind, external_id, **kwargs)
+
+    def correct_dimension(self, kind, external_id, as_of, **kwargs):
+        return self.dimensions.correct(kind, external_id, as_of, **kwargs)
+
     def ingest(self, data):
         return self.ledger.ingest(data)
 
@@ -59,5 +73,5 @@ class LakeService:
     def preview(self, month):
         return self.releases.preview(month)
 
-    def publish(self, name, month, fingerprint):
-        return self.releases.publish(name, month, fingerprint)
+    def publish(self, name, month, fingerprint, supersedes=None, reason=None):
+        return self.releases.publish(name, month, fingerprint, supersedes, reason)

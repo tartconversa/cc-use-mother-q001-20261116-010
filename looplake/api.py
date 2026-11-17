@@ -51,6 +51,33 @@ class ReleaseInput(Strict):
     name: str
     month: str
     expected_fingerprint: str
+    supersedes: str | int | None = None
+    reason: str | None = None
+
+
+class RelocationInput(Strict):
+    effective_from: str
+    parents: dict | None = None
+    name: str | None = None
+    expected_version: int | None = None
+    revision_key: str | None = None
+    reason: str | None = None
+
+
+class RetractionInput(Strict):
+    version: int | None = None
+    expected_version: int | None = None
+    revision_key: str | None = None
+    reason: str | None = None
+
+
+class CorrectionInput(Strict):
+    as_of: str
+    parents: dict | None = None
+    name: str | None = None
+    expected_version: int | None = None
+    revision_key: str | None = None
+    reason: str | None = None
 
 
 class RateInput(Strict):
@@ -100,6 +127,41 @@ def create_app(db_path: str | Path | None = None):
     @app.get("/dimensions/{kind}/{external_id}")
     def dimension_versions(kind: str, external_id: str):
         return service.dimensions.list_versions(kind, external_id)
+
+    @app.get("/dimensions/{kind}/{external_id}/revisions")
+    def dimension_revisions(kind: str, external_id: str):
+        return service.dimensions.list_revisions(kind, external_id)
+
+    @app.get("/revisions/{revision_id}")
+    def revision(revision_id: int):
+        return service.dimensions.revision(revision_id)
+
+    @app.post("/dimensions/{kind}/{external_id}/relocate")
+    def relocate_dimension(kind: str, external_id: str, body: RelocationInput):
+        return service.dimensions.relocate(kind, external_id, body.effective_from,
+                                           parents=body.parents, name=body.name,
+                                           expected_version=body.expected_version,
+                                           revision_key=body.revision_key,
+                                           reason=body.reason)
+
+    @app.post("/dimensions/{kind}/{external_id}/retract")
+    def retract_dimension(kind: str, external_id: str, body: RetractionInput):
+        return service.dimensions.retract(kind, external_id, version=body.version,
+                                          expected_version=body.expected_version,
+                                          revision_key=body.revision_key,
+                                          reason=body.reason)
+
+    @app.post("/dimensions/{kind}/{external_id}/correct")
+    def correct_dimension(kind: str, external_id: str, body: CorrectionInput):
+        return service.dimensions.correct(kind, external_id, body.as_of,
+                                          parents=body.parents, name=body.name,
+                                          expected_version=body.expected_version,
+                                          revision_key=body.revision_key,
+                                          reason=body.reason)
+
+    @app.get("/months/{month}/attribution")
+    def attribution(month: str, street_id: str | None = None):
+        return service.query.attribution(month, street_id)
 
     @app.post("/events")
     def ingest(body: EventInput):
@@ -180,11 +242,24 @@ def create_app(db_path: str | Path | None = None):
 
     @app.post("/releases")
     def release(body: ReleaseInput):
-        return service.publish(body.name, body.month, body.expected_fingerprint)
+        return service.publish(body.name, body.month, body.expected_fingerprint,
+                               supersedes=body.supersedes, reason=body.reason)
 
     @app.get("/releases/{release_id}")
     def get_release(release_id: int):
         return service.releases.get(release_id)
+
+    @app.get("/releases/{release_id}/chain")
+    def release_chain(release_id: int):
+        return service.releases.chain(release_id)
+
+    @app.get("/releases/{release_id}/lineage")
+    def release_lineage(release_id: int):
+        return service.lineage.release(release_id)
+
+    @app.get("/months/{month}/current-release")
+    def current_release(month: str):
+        return service.releases.current(month)
 
     @app.get("/releases/{left_id}/compare/{right_id}")
     def compare_releases(left_id: int, right_id: int):
